@@ -17,6 +17,7 @@ app.get('/', (req, res, next) => {
         .populate('usuario', 'nombre apellido segundoapellido')
         .skip(desde)
         .limit(5)
+        .sort({'fecha': 'desc'})
         .exec(
             (err, observaciones) => {
 
@@ -42,18 +43,59 @@ app.get('/', (req, res, next) => {
 });
 
 // ==========================================
-// Obtener todas las observaciones preventivas de un usuario
+// Obtener una observacion preventiva
 // ==========================================
-app.get('/:id', (req, res, next) => {
+app.get('/observacion/:id', (req, res, next) => {
 
     var desde = req.query.desde || 0;
     desde = Number(desde);
     var id = req.params.id;
     
+    Observaciones.findById(id)
+        .populate('usuario', 'nombre apellido segundoapellido')
+        .exec(
+            (err, observacion) => {
+
+                if (err) {
+                    return res.status(500).json({
+                        ok: false,
+                        mensaje: 'Error cargando observacion preventiva',
+                        errors: err
+                    });
+                }
+
+                if(!observacion ) {
+                    return res.status(400).json({
+                        ok: false,
+                        mensaje: 'La Observacion Preventiva con el id ' + id + ' no existe',
+                        errors: { message: 'No existe la Observacion Preventiva ' }
+                    });
+                }
+
+                res.status(200).json({
+                    ok: true,
+                    observacion: observacion,
+                });
+
+
+            });
+});
+
+
+// ==========================================
+// Obtener todas las observaciones preventivas de un usuario
+// ==========================================
+app.get('/mis-observaciones/:idusr', (req, res, next) => {
+
+    var desde = req.query.desde || 0;
+    desde = Number(desde);
+    var id = req.params.idusr;
+    
     Observaciones.find({usuario: id})
         .populate('usuario', 'nombre apellido segundoapellido')
         .skip(desde)
         .limit(5)
+        .sort({'fechacreacion': 'desc'})
         .exec(
             (err, observaciones) => {
 
@@ -79,6 +121,40 @@ app.get('/:id', (req, res, next) => {
 });
 
 // ==========================================
+// Obtener todas las observaciones preventivas con un estado
+// ==========================================
+app.get('/estado/:estado', (req, res, next) => {
+
+    var desde = req.query.desde || 0;
+    desde = Number(desde);
+    estado = req.params.estado;
+
+    Observaciones.find({})
+        .or({ 'estado': estado })
+        .populate('usuario', 'nombre apellido segundoapellido')
+        .skip(desde)
+        .limit(5)
+        .exec(
+            (err, observaciones) => {
+
+                if (err) {
+                    return res.status(500).json({
+                        ok: false,
+                        mensaje: 'Error cargando observaciones preventivas',
+                        errors: err
+                    });
+                }
+                var conteo = observaciones.length;
+                res.status(200).json({
+                    ok: true,
+                    observaciones: observaciones,
+                    total: conteo
+                });
+
+            });
+});
+
+// ==========================================
 // Crear una nueva observacion preventiva
 // ==========================================
 app.post('/',  (req, res) => {
@@ -90,7 +166,8 @@ app.post('/',  (req, res) => {
         formulario: body.formulario,
         fecha: body.fecha,
         zona: body.zona,
-        repeticion: body.repeticion
+        repeticion: body.repeticion,
+        estado: 'Pendiente Realizar'
     });
 
     observacion.save((err, observacionGuardado) => {
@@ -143,6 +220,7 @@ app.put('/:id', (req, res) => {
         observacion.zona = body.zona;
         observacion.fecha = body.fecha;
         observacion.repeticion = body.repeticion;
+        observacion.estado = body.estado;
 
         observacion.save((err, observacionGuardado) => {
 
